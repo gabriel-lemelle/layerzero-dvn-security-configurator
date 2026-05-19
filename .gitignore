@@ -6,22 +6,40 @@ node_modules/
 .next/
 out/
 
-# environment variables — NEVER commit these
+# environment variables — never commit these
 .env
 .env.local
 .env.*.local
+.env.production
+
+# keys and credentials
+*.pem
+*.key
+*.p12
+*.pfx
+.secrets/
 
 # system
 .DS_Store
 Thumbs.db
 
-# editor
+# editors
 .vscode/
 .idea/
+*.swp
+*.swo
 
 # debug logs
 npm-debug.log*
 pnpm-debug.log*
+yarn-debug.log*
 
-# vercel
+# Vercel
 .vercel
+
+# TypeScript cache
+*.tsbuildinfo
+
+# AI agent context — internal, machine-specific paths
+AGENTS.md
+tasks.md
