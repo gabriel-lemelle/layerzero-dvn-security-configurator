@@ -16,6 +16,7 @@ This tool focuses on one narrow workflow: make the DVN stack visible, explain th
 - **Threshold modeling** — adjust optional DVN threshold and see the effective verifier count.
 - **Security grade** — deterministic F / C / A signal based on verifier count and verification-model diversity.
 - **Config export** — generate a `layerzero.config.ts` fragment with lowercase DVN addresses sorted alphabetically.
+- **Shareable links** — encode the composer state in the URL for teammate or auditor review.
 - **Safety constraints** — runs entirely in the browser without wallet, RPC, signing, custody, or deployment behavior.
 
 ## Security Model
@@ -61,7 +62,8 @@ pnpm dev
 ## Build Checks
 
 ```bash
-pnpm lint
+pnpm test
+pnpm run typecheck
 pnpm build
 ```
 

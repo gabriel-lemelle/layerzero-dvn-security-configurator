@@ -21,7 +21,7 @@ export function grade(config: GradeConfig): GradeResult {
     return {
       grade: 'F',
       headline: 'Single point of failure',
-      reason: 'A configuration that resolves to a single effective DVN is the exact failure mode that caused the $292M KelpDAO exploit on April 18, 2026. Attackers poisoned the RPC nodes feeding KelpDAO\'s lone DVN and tricked the bridge into releasing funds against a forged burn. Add at least one additional DVN with a different verification model.',
+      reason: 'A configuration that resolves to a single effective DVN matches the failure mode described in public KelpDAO post-mortems from April 2026. Attackers poisoned RPC infrastructure feeding the lone DVN and caused the bridge to release funds against a forged cross-chain message. Add at least one additional DVN with a different verification model.',
       kelpDaoWarning: true,
     };
   }

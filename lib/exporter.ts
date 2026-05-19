@@ -43,7 +43,11 @@ export function generateConfig(config: ExportConfig): string {
 
   const indent = '          ';
 
-  return `import { EndpointId } from '@layerzerolabs/lz-definitions'
+  return `// REVIEW REQUIRED: DVN addresses in this demo are static and may be placeholders.
+// Verify every DVN address against official LayerZero metadata before deployment:
+// https://metadata.layerzero-api.com/v1/metadata/dvns
+
+import { EndpointId } from '@layerzerolabs/lz-definitions'
 
 export const connection = {
   from: { eid: EndpointId.${sourceEidName}, contractName: 'MyOApp' },

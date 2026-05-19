@@ -86,9 +86,10 @@ export function SecurityGrade({ result, onApplyGradeAConfig }: SecurityGradeProp
                     Single point of failure detected — this matches the KelpDAO exploit pattern
                   </h4>
                   <p className="text-sm text-red-200/80">
-                    On April 18, 2026, KelpDAO lost $292M because they relied on a single DVN.
-                    Attackers poisoned the RPC nodes and forged a burn transaction that the lone
-                    verifier accepted. Your current configuration has the same vulnerability.
+                    On April 18, 2026, KelpDAO lost approximately $292M while using a 1-of-1 DVN
+                    setup. Public post-mortems describe an RPC-poisoning attack that caused the lone
+                    verifier to accept a forged cross-chain message. Your current configuration has the
+                    same single-verifier failure mode.
                   </p>
                 </div>
               </div>
@@ -98,7 +99,7 @@ export function SecurityGrade({ result, onApplyGradeAConfig }: SecurityGradeProp
                 className="w-full md:w-auto border-red-500/50 text-red-300 hover:bg-red-500/10 hover:text-red-200 hover:border-red-500"
               >
                 <Sparkles className="h-4 w-4 mr-2" />
-                Show me a Grade A starter config
+                Show an educational Grade A example
               </Button>
             </div>
           </div>

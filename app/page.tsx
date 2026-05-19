@@ -1,16 +1,18 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { KelpDaoBanner } from '@/components/KelpDaoBanner';
 import { Composer } from '@/components/Composer';
 import { SecurityGrade } from '@/components/SecurityGrade';
 import { CodeExport } from '@/components/CodeExport';
+import { ShareLink } from '@/components/ShareLink';
 import type { DVN } from '@/lib/dvns';
 import { DVNS } from '@/lib/dvns';
 import type { Chain } from '@/lib/chains';
 import { CHAINS } from '@/lib/chains';
 import { grade } from '@/lib/grader';
 import { generateConfig } from '@/lib/exporter';
+import { parseUrlConfig, serializeUrlConfig } from '@/lib/url-state';
 
 export default function Home() {
   const [sourceChain, setSourceChain] = useState<Chain>(CHAINS[0]);
@@ -18,6 +20,41 @@ export default function Home() {
   const [requiredDVNs, setRequiredDVNs] = useState<DVN[]>([]);
   const [optionalDVNs, setOptionalDVNs] = useState<DVN[]>([]);
   const [optionalThreshold, setOptionalThreshold] = useState(0);
+  const [urlStateReady, setUrlStateReady] = useState(false);
+
+  useEffect(() => {
+    const parsedConfig = parseUrlConfig(window.location.search);
+
+    if (parsedConfig.sourceChain) setSourceChain(parsedConfig.sourceChain);
+    if (parsedConfig.destChain) setDestChain(parsedConfig.destChain);
+    if (parsedConfig.requiredDVNs) setRequiredDVNs(parsedConfig.requiredDVNs);
+    if (parsedConfig.optionalDVNs) setOptionalDVNs(parsedConfig.optionalDVNs);
+    if (parsedConfig.optionalThreshold !== undefined) {
+      setOptionalThreshold(parsedConfig.optionalThreshold);
+    }
+
+    setUrlStateReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!urlStateReady) return;
+    setOptionalThreshold((currentThreshold) => Math.min(currentThreshold, optionalDVNs.length));
+  }, [optionalDVNs.length, urlStateReady]);
+
+  useEffect(() => {
+    if (!urlStateReady) return;
+
+    const query = serializeUrlConfig({
+      sourceChain,
+      destChain,
+      requiredDVNs,
+      optionalDVNs,
+      optionalThreshold,
+    });
+    const nextUrl = query ? `${window.location.pathname}?${query}` : window.location.pathname;
+
+    window.history.replaceState(null, '', nextUrl);
+  }, [sourceChain, destChain, requiredDVNs, optionalDVNs, optionalThreshold, urlStateReady]);
 
   const gradeResult = useMemo(() => {
     return grade({
@@ -38,9 +75,8 @@ export default function Home() {
   }, [sourceChain, destChain, requiredDVNs, optionalDVNs, optionalThreshold]);
 
   const applyGradeAConfig = () => {
-    // Pre-fill with LayerZero Labs DVN (native) + Polyhedra zkBridge (zk-light-client)
-    const lzLabsDVN = DVNS.find(d => d.id === 'layerzero-labs');
-    const polyhedraDVN = DVNS.find(d => d.id === 'polyhedra-zkbridge');
+    const lzLabsDVN = DVNS.find((dvn) => dvn.id === 'layerzero-labs');
+    const polyhedraDVN = DVNS.find((dvn) => dvn.id === 'polyhedra-zkbridge');
     
     if (lzLabsDVN && polyhedraDVN) {
       setRequiredDVNs([lzLabsDVN, polyhedraDVN]);
@@ -54,18 +90,21 @@ export default function Home() {
       <KelpDaoBanner />
       
       <main className="max-w-7xl mx-auto px-4 py-8 space-y-8">
-        {/* Header */}
-        <header className="space-y-2 pb-6 border-b border-zinc-800">
-          <h1 className="text-3xl font-bold text-zinc-100">
-            LayerZero DVN Security Configurator
-          </h1>
-          <p className="text-zinc-400 max-w-2xl">
-            Compose a secure Decentralized Verifier Network configuration for your LayerZero V2 OApp.
-            This tool is read-only and runs entirely in your browser — no wallet connection, no RPC calls.
-          </p>
+        <header className="space-y-4 pb-6 border-b border-zinc-800">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="space-y-2">
+              <h1 className="text-3xl font-bold text-zinc-100">
+                LayerZero DVN Security Configurator
+              </h1>
+              <p className="text-zinc-400 max-w-2xl">
+                Compose and review a Decentralized Verifier Network configuration for your LayerZero V2 OApp.
+                This tool is read-only and runs entirely in your browser — no wallet connection, no RPC calls.
+              </p>
+            </div>
+            <ShareLink />
+          </div>
         </header>
 
-        {/* Section 1: Composer */}
         <Composer
           sourceChain={sourceChain}
           destChain={destChain}
@@ -79,16 +118,13 @@ export default function Home() {
           onOptionalThresholdChange={setOptionalThreshold}
         />
 
-        {/* Section 2: Security Grade */}
         <SecurityGrade
           result={gradeResult}
           onApplyGradeAConfig={applyGradeAConfig}
         />
 
-        {/* Section 3: Code Export */}
         <CodeExport code={generatedCode} />
 
-        {/* Footer */}
         <footer className="pt-8 border-t border-zinc-800">
           <p className="text-xs text-zinc-600 text-center">
             This tool generates configuration fragments only. Always verify DVN addresses against{' '}
