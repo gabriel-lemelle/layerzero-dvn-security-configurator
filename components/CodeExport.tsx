@@ -7,10 +7,12 @@ import { Button } from '@/components/ui/button';
 
 interface CodeExportProps {
   code: string;
+  mode: 'wire-ready' | 'explore';
 }
 
-export function CodeExport({ code }: CodeExportProps) {
+export function CodeExport({ code, mode }: CodeExportProps) {
   const [copied, setCopied] = useState(false);
+  const isWireReady = mode === 'wire-ready' && !code.startsWith('// Cannot generate');
 
   const handleCopy = async () => {
     try {
@@ -25,16 +27,28 @@ export function CodeExport({ code }: CodeExportProps) {
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-zinc-100">Generated Config</h2>
+        <div className="space-y-1">
+          <h2 className="text-xl font-semibold text-zinc-100">
+            {isWireReady ? 'Wire-ready Config' : 'Export Unavailable'}
+          </h2>
+          <p className="text-xs text-zinc-500">
+            {isWireReady
+              ? 'Generated with official LayerZero metadata provider names.'
+              : mode === 'explore'
+                ? 'Explore mode explains stack structure without emitting copy-paste config.'
+                : 'This pathway needs metadata-backed DVNs before export.'}
+          </p>
+        </div>
         <Button
           onClick={handleCopy}
+          disabled={!isWireReady}
           variant="outline"
           size="sm"
           className="bg-zinc-900 border-zinc-800 hover:bg-zinc-800 hover:border-zinc-700 text-zinc-300"
         >
           {copied ? (
             <>
-              <Check className="h-4 w-4 mr-2 text-emerald-500" />
+              <Check className="h-4 w-4 mr-2 text-zinc-300" />
               Copied
             </>
           ) : (
@@ -72,8 +86,8 @@ export function CodeExport({ code }: CodeExportProps) {
       </div>
 
       <p className="text-xs text-zinc-500">
-        This fragment is compatible with <span className="font-mono text-zinc-400">@layerzerolabs/metadata-tools</span>.
-        DVN addresses are sorted alphabetically (lowercase) as required by the LayerZero protocol.
+        Wire-ready output uses the official <span className="font-mono text-zinc-400">generateConnectionsConfig</span> shape.
+        Replace <span className="font-mono text-zinc-400">contractName: 'MyOApp'</span> and inspect enforced options before wiring.
       </p>
     </section>
   );

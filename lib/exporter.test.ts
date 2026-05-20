@@ -4,77 +4,116 @@ import type { DVN } from './dvns';
 import { generateConfig } from './exporter';
 import { CHAINS } from './chains';
 
-function makeDvn(id: string, name: string, ethereumAddress: string, arbitrumAddress: string): DVN {
+function makeDvn(
+  id: string,
+  name: string,
+  category: DVN['category'],
+  canonicalName = name,
+): DVN {
   return {
     id,
     name,
-    category: 'native',
+    category,
     operator: 'Test operator',
     trustModel: 'Test trust model',
-    addresses: {
-      ethereum_sepolia: ethereumAddress,
-      arbitrum_sepolia: arbitrumAddress,
-      optimism_sepolia: '0x0000000000000000000000000000000000000003',
-      base_sepolia: '0x0000000000000000000000000000000000000004',
-    },
+    canonicalName,
   };
 }
 
 const ethereum = CHAINS.find((chain) => chain.id === 'ethereum-sepolia') ?? CHAINS[0];
-const arbitrum = CHAINS.find((chain) => chain.id === 'arbitrum-sepolia') ?? CHAINS[1];
-const laterAddress = '0xcccccccccccccccccccccccccccccccccccccccc';
-const earlierAddress = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
-const mixedCaseOptional = '0xBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB';
-const firstDvn = makeDvn('first', 'First DVN', laterAddress, '0xdddddddddddddddddddddddddddddddddddddddd');
-const secondDvn = makeDvn('second', 'Second DVN', earlierAddress, '0x1111111111111111111111111111111111111111');
-const optionalDvn = makeDvn('optional', 'Optional DVN', mixedCaseOptional, '0x2222222222222222222222222222222222222222');
+const optimism =
+  CHAINS.find((chain) => chain.id === 'optimism-sepolia') ?? CHAINS[2];
+const base = CHAINS.find((chain) => chain.id === 'base-sepolia') ?? CHAINS[3];
 
-test('returns placeholder when no required DVNs are selected', () => {
+const layerZero = makeDvn(
+  'layerzero-labs',
+  'LayerZero Labs',
+  'native',
+);
+const horizen = makeDvn('horizen-labs', 'Horizen', 'zk-light-client');
+const nethermind = makeDvn(
+  'nethermind',
+  'Nethermind',
+  'multisig-consortium',
+);
+const unsupported = makeDvn('unsupported', 'Unsupported', 'zk-light-client');
+
+test('returns a blocking message when no effective DVNs are selected', () => {
   const code = generateConfig({
-    sourceChain: ethereum,
-    destChain: arbitrum,
+    sourceChain: base,
+    destChain: optimism,
     requiredDVNs: [],
-    optionalDVNs: [optionalDvn],
-    optionalThreshold: 1,
-  });
-
-  assert.match(code, /Add at least one DVN/);
-});
-
-test('sorts required DVN addresses alphabetically with lowercase comparison', () => {
-  const code = generateConfig({
-    sourceChain: ethereum,
-    destChain: arbitrum,
-    requiredDVNs: [firstDvn, secondDvn],
     optionalDVNs: [],
     optionalThreshold: 0,
   });
 
-  assert.ok(code.indexOf(earlierAddress) < code.indexOf(laterAddress));
+  assert.match(code, /Cannot generate a wire-ready LayerZero config/);
+  assert.match(code, /Select at least one required DVN/);
 });
 
-test('lowercases exported optional DVN addresses and renders threshold', () => {
+test('generates the official metadata-tools layerzero.config.ts shape', () => {
   const code = generateConfig({
-    sourceChain: ethereum,
-    destChain: arbitrum,
-    requiredDVNs: [secondDvn],
-    optionalDVNs: [optionalDvn],
-    optionalThreshold: 1,
-  });
-
-  assert.match(code, /'0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', \/\/ Optional DVN/);
-  assert.match(code, /optionalDVNThreshold: 1/);
-});
-
-test('uses source chain addresses for send config and destination chain addresses for receive config', () => {
-  const code = generateConfig({
-    sourceChain: ethereum,
-    destChain: arbitrum,
-    requiredDVNs: [secondDvn],
+    sourceChain: base,
+    destChain: optimism,
+    requiredDVNs: [layerZero, horizen],
     optionalDVNs: [],
     optionalThreshold: 0,
   });
 
-  assert.match(code, /'0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', \/\/ Second DVN/);
-  assert.match(code, /'0x1111111111111111111111111111111111111111', \/\/ Second DVN/);
+  assert.match(code, /generateConnectionsConfig/);
+  assert.match(code, /export default async function/);
+  assert.match(code, /contracts: \[/);
+  assert.match(code, /connections,/);
+  assert.match(code, /EndpointId.BASESEP_V2_TESTNET/);
+  assert.match(code, /EndpointId.OPTSEP_V2_TESTNET/);
+  assert.match(code, /'LayerZero Labs'/);
+  assert.match(code, /'Horizen'/);
+});
+
+test('renders optional DVNs and clamps threshold', () => {
+  const code = generateConfig({
+    sourceChain: base,
+    destChain: optimism,
+    requiredDVNs: [layerZero],
+    optionalDVNs: [horizen, nethermind],
+    optionalThreshold: 99,
+  });
+
+  assert.match(code, /\[\s*'Horizen',\s*'Nethermind',\s*\], 2\]/);
+});
+
+test('supports optional-only metadata-tools config when threshold is effective', () => {
+  const code = generateConfig({
+    sourceChain: base,
+    destChain: optimism,
+    requiredDVNs: [],
+    optionalDVNs: [layerZero, horizen],
+    optionalThreshold: 2,
+  });
+
+  assert.match(code, /\[\s*\[\],\s*\[\[\s*'LayerZero Labs',\s*'Horizen',\s*\], 2\],\s*\]/);
+});
+
+test('blocks Ethereum Sepolia while official metadata lists no active DVNs', () => {
+  const code = generateConfig({
+    sourceChain: ethereum,
+    destChain: base,
+    requiredDVNs: [layerZero],
+    optionalDVNs: [],
+    optionalThreshold: 0,
+  });
+
+  assert.match(code, /LayerZero Labs is not listed as an active DVN on Ethereum Sepolia/);
+});
+
+test('blocks DVNs that are not active official providers on both chains', () => {
+  const code = generateConfig({
+    sourceChain: base,
+    destChain: optimism,
+    requiredDVNs: [unsupported],
+    optionalDVNs: [],
+    optionalThreshold: 0,
+  });
+
+  assert.match(code, /Unsupported is not listed as an active DVN/);
 });

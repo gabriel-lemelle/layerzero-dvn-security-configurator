@@ -7,12 +7,6 @@ export interface Chain {
 
 export const CHAINS: Chain[] = [
   {
-    id: 'ethereum-sepolia',
-    name: 'Ethereum Sepolia',
-    eid: 40161,
-    addressKey: 'ethereum_sepolia',
-  },
-  {
     id: 'arbitrum-sepolia',
     name: 'Arbitrum Sepolia',
     eid: 40231,
@@ -29,6 +23,12 @@ export const CHAINS: Chain[] = [
     name: 'Base Sepolia',
     eid: 40245,
     addressKey: 'base_sepolia',
+  },
+  {
+    id: 'ethereum-sepolia',
+    name: 'Ethereum Sepolia',
+    eid: 40161,
+    addressKey: 'ethereum_sepolia',
   },
 ];
 

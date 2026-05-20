@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { ChevronDown, Plus, Minus, Shield, X } from 'lucide-react';
+import { ChevronDown, Plus, Minus, X } from 'lucide-react';
 import {
   DndContext,
   DragOverlay,
@@ -24,8 +24,13 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import type { DVN } from '@/lib/dvns';
 import { DVNS, DVN_CATEGORY_LABELS } from '@/lib/dvns';
+import { CATEGORY_COLOR } from '@/lib/category-style';
 import type { Chain } from '@/lib/chains';
 import { CHAINS } from '@/lib/chains';
+import {
+  hasActiveDvnMetadata,
+  isDvnActiveForChainPair,
+} from '@/lib/layerzero-metadata';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -36,48 +41,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-function SecurityIndicator({ 
-  requiredCount, 
-  optionalThreshold, 
-  optionalCount,
-  totalDVNs 
-}: { 
-  requiredCount: number; 
-  optionalThreshold: number;
-  optionalCount: number;
-  totalDVNs: number;
-}) {
-  const effectiveDVNs = requiredCount + optionalThreshold;
-  const selectedTotal = requiredCount + optionalCount;
-  
-  return (
-    <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-zinc-900/50 border border-zinc-800">
-      <Shield className="h-5 w-5 text-emerald-500 shrink-0" />
-      <div className="flex items-baseline gap-2">
-        <span className="font-mono text-lg font-semibold text-zinc-100">
-          {effectiveDVNs}
-        </span>
-        <span className="text-zinc-500 text-sm">of</span>
-        <span className="font-mono text-lg font-semibold text-zinc-100">
-          {selectedTotal}
-        </span>
-        <span className="text-zinc-500 text-sm">of</span>
-        <span className="font-mono text-lg text-zinc-400">
-          {totalDVNs}
-        </span>
-      </div>
-      <div className="ml-auto text-xs text-zinc-500">
-        <span className="text-emerald-400">{requiredCount}</span> required
-        {optionalThreshold > 0 && (
-          <>
-            {' + '}
-            <span className="text-blue-400">{optionalThreshold}</span>/{optionalCount} optional
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
+// Category labels are informational — they don't carry severity. Render them
+// in monochrome so the grade matrix below stays the only place colored by
+// category. This stops the "green chip / red grade" semantic conflict.
+const CATEGORY_LABEL_STYLE =
+  'text-zinc-400 border-zinc-700 bg-zinc-900/40';
 
 // Inline DVN card for drag and drop
 function DraggableDvnCard({ 
@@ -89,13 +57,6 @@ function DraggableDvnCard({
   onRemove?: () => void;
   isDragging?: boolean;
 }) {
-  const categoryColors: Record<DVN['category'], string> = {
-    'native': 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-    'zk-light-client': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-    'attestation': 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-    'multisig-consortium': 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-  };
-
   return (
     <div
       className={cn(
@@ -107,19 +68,26 @@ function DraggableDvnCard({
         <div className="flex items-center gap-2 min-w-0">
           <span className="font-medium text-zinc-100 text-sm truncate">{dvn.name}</span>
           <span className={cn(
-            'text-xs px-1.5 py-0.5 rounded border shrink-0',
-            categoryColors[dvn.category]
+            'inline-flex items-center gap-1.5 text-xs px-1.5 py-0.5 rounded border shrink-0 font-mono',
+            CATEGORY_LABEL_STYLE,
           )}>
+            <span
+              aria-hidden
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ background: CATEGORY_COLOR[dvn.category] }}
+            />
             {DVN_CATEGORY_LABELS[dvn.category]}
           </span>
         </div>
         {onRemove && (
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               onRemove();
             }}
             className="p-1 rounded hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300 shrink-0"
+            aria-label={`Remove ${dvn.name}`}
           >
             <X className="h-3 w-3" />
           </button>
@@ -158,14 +126,16 @@ function DraggableAvailableCard({ dvn, addMode, onAdd }: { dvn: DVN; addMode: 'r
         <DraggableDvnCard dvn={dvn} />
       </div>
       <button
+        type="button"
         onClick={onAdd}
         className={cn(
           'px-2 rounded-md border transition-colors flex items-center justify-center shrink-0',
           addMode === 'required'
-            ? 'bg-emerald-600/20 hover:bg-emerald-600/40 border-emerald-600/50 text-emerald-400'
-            : 'bg-blue-600/20 hover:bg-blue-600/40 border-blue-600/50 text-blue-400'
+            ? 'bg-zinc-800 text-zinc-100 border-zinc-700 hover:bg-zinc-700'
+            : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:bg-zinc-800 hover:text-zinc-200'
         )}
         title={`Add to ${addMode === 'required' ? 'Required' : 'Optional'}`}
+        aria-label={`Add ${dvn.name} to ${addMode === 'required' ? 'required' : 'optional'} DVNs`}
       >
         <Plus className="h-4 w-4" />
       </button>
@@ -224,6 +194,7 @@ function DroppableZone({
 }
 
 interface ComposerProps {
+  mode: 'wire-ready' | 'explore';
   sourceChain: Chain;
   destChain: Chain;
   requiredDVNs: DVN[];
@@ -237,6 +208,7 @@ interface ComposerProps {
 }
 
 export function Composer({
+  mode,
   sourceChain,
   destChain,
   requiredDVNs,
@@ -253,6 +225,13 @@ export function Composer({
   const [activeDvn, setActiveDvn] = useState<DVN | null>(null);
 
   const [overZone, setOverZone] = useState<string | null>(null);
+  const chainOptions = useMemo(
+    () =>
+      mode === 'wire-ready'
+        ? CHAINS.filter((chain) => hasActiveDvnMetadata(chain))
+        : CHAINS,
+    [mode],
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -269,13 +248,20 @@ export function Composer({
     return new Set([...requiredDVNs, ...optionalDVNs].map(d => d.id));
   }, [requiredDVNs, optionalDVNs]);
 
+  const compatibleDVNs = useMemo(() => {
+    if (mode === 'explore') return DVNS;
+    return DVNS.filter((dvn) =>
+      isDvnActiveForChainPair(dvn, sourceChain, destChain),
+    );
+  }, [destChain, mode, sourceChain]);
+
   const availableDVNs = useMemo(() => {
-    return DVNS.filter(dvn => {
+    return compatibleDVNs.filter(dvn => {
       if (selectedIds.has(dvn.id)) return false;
       if (categoryFilter !== 'all' && dvn.category !== categoryFilter) return false;
       return true;
     });
-  }, [selectedIds, categoryFilter]);
+  }, [compatibleDVNs, selectedIds, categoryFilter]);
 
   const addDvn = (dvn: DVN) => {
     if (addMode === 'required') {
@@ -403,18 +389,28 @@ export function Composer({
 
   return (
     <section className="space-y-6">
-      {/* Security Indicator */}
-      <SecurityIndicator
-        requiredCount={requiredDVNs.length}
-        optionalThreshold={optionalThreshold}
-        optionalCount={optionalDVNs.length}
-        totalDVNs={DVNS.length}
-      />
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-zinc-800/60 pb-3 text-xs">
+        <span className="text-zinc-400">
+          {mode === 'wire-ready'
+            ? `${compatibleDVNs.length} DVNs compatible with this pathway`
+            : 'Explore mode — export disabled while inspecting unsupported pathways'}
+        </span>
+        <a
+          href="https://metadata.layerzero-api.com/v1/metadata"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-mono text-zinc-500 underline underline-offset-2 hover:text-zinc-300"
+        >
+          metadata source ↗
+        </a>
+      </div>
 
       {/* Chain Selectors */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <label className="text-sm font-medium text-zinc-400">Source Chain</label>
+          <label className="font-mono text-[10px] uppercase tracking-wide text-zinc-500">
+            Source chain
+          </label>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="w-full justify-between bg-zinc-900 border-zinc-800 hover:bg-zinc-800 hover:border-zinc-700 text-zinc-100">
@@ -426,7 +422,7 @@ export function Composer({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)] bg-zinc-900 border-zinc-800">
-              {CHAINS.map(chain => (
+              {chainOptions.map(chain => (
                 <DropdownMenuItem
                   key={chain.id}
                   onClick={() => onSourceChainChange(chain)}
@@ -444,7 +440,9 @@ export function Composer({
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium text-zinc-400">Destination Chain</label>
+          <label className="font-mono text-[10px] uppercase tracking-wide text-zinc-500">
+            Destination chain
+          </label>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="w-full justify-between bg-zinc-900 border-zinc-800 hover:bg-zinc-800 hover:border-zinc-700 text-zinc-100">
@@ -456,7 +454,7 @@ export function Composer({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)] bg-zinc-900 border-zinc-800">
-              {CHAINS.map(chain => (
+              {chainOptions.map(chain => (
                 <DropdownMenuItem
                   key={chain.id}
                   onClick={() => onDestChainChange(chain)}
@@ -476,6 +474,7 @@ export function Composer({
 
       {/* DVN Configuration */}
       <DndContext
+        id="dvn-composer"
         sensors={sensors}
         collisionDetection={closestCenter}
         onDragStart={handleDragStart}
@@ -486,28 +485,32 @@ export function Composer({
         {/* Available DVNs - Full Width */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-zinc-400">Available DVNs</h3>
+            <h3 className="font-mono text-[10px] uppercase tracking-wide text-zinc-500">
+              Available DVNs
+            </h3>
             <div className="flex items-center gap-3">
               {/* Mode Toggle */}
-              <div className="flex items-center rounded-lg border border-zinc-800 p-0.5 bg-zinc-900">
+              <div className="flex items-center rounded-md border border-zinc-800 bg-zinc-900/50 p-0.5">
                 <button
+                  type="button"
                   onClick={() => setAddMode('required')}
                   className={cn(
-                    'px-3 py-1 text-xs font-medium rounded-md transition-colors',
+                    'rounded px-3 py-1 text-xs font-medium transition-colors',
                     addMode === 'required'
-                      ? 'bg-emerald-600 text-white'
-                      : 'text-zinc-400 hover:text-zinc-200'
+                      ? 'bg-zinc-800 text-zinc-100'
+                      : 'text-zinc-500 hover:text-zinc-200'
                   )}
                 >
                   Required
                 </button>
                 <button
+                  type="button"
                   onClick={() => setAddMode('optional')}
                   className={cn(
-                    'px-3 py-1 text-xs font-medium rounded-md transition-colors',
+                    'rounded px-3 py-1 text-xs font-medium transition-colors',
                     addMode === 'optional'
-                      ? 'bg-blue-600 text-white'
-                      : 'text-zinc-400 hover:text-zinc-200'
+                      ? 'bg-zinc-800 text-zinc-100'
+                      : 'text-zinc-500 hover:text-zinc-200'
                   )}
                 >
                   Optional
@@ -547,7 +550,11 @@ export function Composer({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {availableDVNs.length === 0 ? (
               <p className="text-sm text-zinc-500 py-4 text-center col-span-full">
-                {selectedIds.size === DVNS.length ? 'All DVNs selected' : 'No DVNs match filter'}
+                {compatibleDVNs.length === 0
+                  ? 'No official DVNs are active for this chain pair'
+                  : selectedIds.size === compatibleDVNs.length
+                    ? 'All compatible DVNs selected'
+                    : 'No DVNs match filter'}
               </p>
             ) : (
               availableDVNs.map(dvn => (
@@ -568,8 +575,7 @@ export function Composer({
             {/* Required DVNs */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-emerald-400 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <h3 className="font-mono text-[10px] uppercase tracking-wide text-zinc-500">
                   Required DVNs
                 </h3>
                 <span className="text-xs text-zinc-500">{requiredDVNs.length} selected</span>
@@ -581,8 +587,8 @@ export function Composer({
                 <DroppableZone 
                   id="required-zone"
                   className={cn(
-                    "min-h-[200px] rounded-lg border border-emerald-600/30 bg-emerald-600/5 p-3 space-y-2 transition-all",
-                    overZone === 'required' && 'ring-2 ring-emerald-500 border-emerald-500'
+                    "min-h-[200px] rounded-lg border border-zinc-800 bg-zinc-950/40 p-3 space-y-2 transition-all",
+                    overZone === 'required' && 'ring-2 ring-zinc-500 border-zinc-500'
                   )}
                 >
                   {requiredDVNs.length === 0 ? (
@@ -610,8 +616,7 @@ export function Composer({
             {/* Optional DVNs */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-blue-400 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                <h3 className="font-mono text-[10px] uppercase tracking-wide text-zinc-500">
                   Optional DVNs
                 </h3>
                 <span className="text-xs text-zinc-500">{optionalDVNs.length} selected</span>
@@ -623,8 +628,8 @@ export function Composer({
                 <DroppableZone 
                   id="optional-zone"
                   className={cn(
-                    "min-h-[200px] rounded-lg border border-blue-600/30 bg-blue-600/5 p-3 space-y-2 transition-all",
-                    overZone === 'optional' && 'ring-2 ring-blue-500 border-blue-500'
+                    "min-h-[200px] rounded-lg border border-zinc-800 bg-zinc-950/40 p-3 space-y-2 transition-all",
+                    overZone === 'optional' && 'ring-2 ring-zinc-500 border-zinc-500'
                   )}
                 >
                   {optionalDVNs.length === 0 ? (
@@ -645,16 +650,19 @@ export function Composer({
                 </DroppableZone>
               </SortableContext>
               <div className="flex items-center gap-3">
-                <label className="text-xs text-zinc-500 shrink-0">Threshold:</label>
+                <label htmlFor="optional-threshold" className="text-xs text-zinc-500 shrink-0">Threshold:</label>
                 <div className="flex items-center gap-2">
                   <button
+                    type="button"
                     onClick={() => handleThresholdChange(-1)}
                     disabled={optionalThreshold <= 0}
                     className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-300"
+                    aria-label="Decrease optional DVN threshold"
                   >
                     <Minus className="h-4 w-4" />
                   </button>
                   <Input
+                    id="optional-threshold"
                     type="number"
                     value={optionalThreshold}
                     onChange={(e) => {
@@ -668,9 +676,11 @@ export function Composer({
                     className="w-16 text-center bg-zinc-900 border-zinc-800 text-zinc-100 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                   <button
+                    type="button"
                     onClick={() => handleThresholdChange(1)}
                     disabled={optionalThreshold >= optionalDVNs.length}
                     className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed text-zinc-300"
+                    aria-label="Increase optional DVN threshold"
                   >
                     <Plus className="h-4 w-4" />
                   </button>

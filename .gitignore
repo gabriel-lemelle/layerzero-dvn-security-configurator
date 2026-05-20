@@ -6,7 +6,7 @@ node_modules/
 .next/
 out/
 
-# environment variables — never commit these
+# environment variables - never commit these
 .env
 .env.local
 .env.*.local
@@ -26,6 +26,7 @@ Thumbs.db
 # editors
 .vscode/
 .idea/
+.claude/
 *.swp
 *.swo
 
@@ -40,10 +41,11 @@ yarn-debug.log*
 # TypeScript cache
 *.tsbuildinfo
 
-# AI agent context — internal, machine-specific paths
+# local private files
 AGENTS.md
 tasks.md
 .context
+mockups/
 
 # local test build
 .test-build/

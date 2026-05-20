@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { KelpDaoBanner } from '@/components/KelpDaoBanner';
+import Link from 'next/link';
 import { Composer } from '@/components/Composer';
 import { SecurityGrade } from '@/components/SecurityGrade';
 import { CodeExport } from '@/components/CodeExport';
@@ -13,10 +13,21 @@ import { CHAINS } from '@/lib/chains';
 import { grade } from '@/lib/grader';
 import { generateConfig } from '@/lib/exporter';
 import { parseUrlConfig, serializeUrlConfig } from '@/lib/url-state';
+import { cn } from '@/lib/utils';
+import {
+  hasActiveDvnMetadata,
+  isDvnActiveForChainPair,
+} from '@/lib/layerzero-metadata';
+
+const DEFAULT_SOURCE_CHAIN =
+  CHAINS.find((chain) => chain.id === 'base-sepolia') ?? CHAINS[0];
+const DEFAULT_DEST_CHAIN =
+  CHAINS.find((chain) => chain.id === 'optimism-sepolia') ?? CHAINS[1];
 
 export default function Home() {
-  const [sourceChain, setSourceChain] = useState<Chain>(CHAINS[0]);
-  const [destChain, setDestChain] = useState<Chain>(CHAINS[1]);
+  const [mode, setMode] = useState<'wire-ready' | 'explore'>('wire-ready');
+  const [sourceChain, setSourceChain] = useState<Chain>(DEFAULT_SOURCE_CHAIN);
+  const [destChain, setDestChain] = useState<Chain>(DEFAULT_DEST_CHAIN);
   const [requiredDVNs, setRequiredDVNs] = useState<DVN[]>([]);
   const [optionalDVNs, setOptionalDVNs] = useState<DVN[]>([]);
   const [optionalThreshold, setOptionalThreshold] = useState(0);
@@ -38,7 +49,26 @@ export default function Home() {
 
   useEffect(() => {
     if (!urlStateReady) return;
-    setOptionalThreshold((currentThreshold) => Math.min(currentThreshold, optionalDVNs.length));
+    if (mode === 'explore') return;
+
+    if (!hasActiveDvnMetadata(sourceChain) || !hasActiveDvnMetadata(destChain)) {
+      setSourceChain(DEFAULT_SOURCE_CHAIN);
+      setDestChain(DEFAULT_DEST_CHAIN);
+      return;
+    }
+
+    const compatible = (dvn: DVN) =>
+      isDvnActiveForChainPair(dvn, sourceChain, destChain);
+
+    setRequiredDVNs((current) => current.filter(compatible));
+    setOptionalDVNs((current) => current.filter(compatible));
+  }, [destChain, mode, sourceChain, urlStateReady]);
+
+  useEffect(() => {
+    if (!urlStateReady) return;
+    setOptionalThreshold((currentThreshold) =>
+      Math.min(currentThreshold, optionalDVNs.length),
+    );
   }, [optionalDVNs.length, urlStateReady]);
 
   useEffect(() => {
@@ -71,15 +101,19 @@ export default function Home() {
       requiredDVNs,
       optionalDVNs,
       optionalThreshold,
+      mode,
     });
-  }, [sourceChain, destChain, requiredDVNs, optionalDVNs, optionalThreshold]);
+  }, [sourceChain, destChain, requiredDVNs, optionalDVNs, optionalThreshold, mode]);
 
-  const applyGradeAConfig = () => {
+  const applyEducationalExample = () => {
     const lzLabsDVN = DVNS.find((dvn) => dvn.id === 'layerzero-labs');
-    const polyhedraDVN = DVNS.find((dvn) => dvn.id === 'polyhedra-zkbridge');
+    const horizenDVN = DVNS.find((dvn) => dvn.id === 'horizen-labs');
+    const nethermindDVN = DVNS.find((dvn) => dvn.id === 'nethermind');
     
-    if (lzLabsDVN && polyhedraDVN) {
-      setRequiredDVNs([lzLabsDVN, polyhedraDVN]);
+    if (lzLabsDVN && horizenDVN && nethermindDVN) {
+      setSourceChain(DEFAULT_SOURCE_CHAIN);
+      setDestChain(DEFAULT_DEST_CHAIN);
+      setRequiredDVNs([lzLabsDVN, horizenDVN, nethermindDVN]);
       setOptionalDVNs([]);
       setOptionalThreshold(0);
     }
@@ -87,57 +121,110 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
-      <KelpDaoBanner />
-      
       <main className="max-w-7xl mx-auto px-4 py-8 space-y-8">
-        <header className="space-y-4 pb-6 border-b border-zinc-800">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div className="space-y-2">
-              <h1 className="text-3xl font-bold text-zinc-100">
-                LayerZero DVN Security Configurator
+        <header className="space-y-3 pb-6 border-b border-zinc-800">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div className="space-y-1.5">
+              <div className="font-mono text-[11px] uppercase tracking-wide text-zinc-500">
+                LayerZero V2 · Read-only
+              </div>
+              <h1 className="text-2xl font-semibold text-zinc-100">
+                DVN Configurator
               </h1>
-              <p className="text-zinc-400 max-w-2xl">
-                Compose and review a Decentralized Verifier Network configuration for your LayerZero V2 OApp.
-                This tool is read-only and runs entirely in your browser — no wallet connection, no RPC calls.
+              <p className="max-w-xl text-sm text-zinc-400">
+                Design a DVN stack, catch single-verifier risk before it ships, and
+                export wire-ready config.
               </p>
             </div>
             <ShareLink />
           </div>
         </header>
 
-        <Composer
-          sourceChain={sourceChain}
-          destChain={destChain}
-          requiredDVNs={requiredDVNs}
-          optionalDVNs={optionalDVNs}
-          optionalThreshold={optionalThreshold}
-          onSourceChainChange={setSourceChain}
-          onDestChainChange={setDestChain}
-          onRequiredDVNsChange={setRequiredDVNs}
-          onOptionalDVNsChange={setOptionalDVNs}
-          onOptionalThresholdChange={setOptionalThreshold}
-        />
+        <section className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-baseline gap-3">
+            <h2 className="text-sm font-medium text-zinc-100">Generation mode</h2>
+            <span className="text-xs text-zinc-500">
+              Wire-ready filters to metadata-backed pathways. Explore reveals scoped testnets.
+            </span>
+          </div>
+          <div className="flex rounded-md border border-zinc-800 bg-zinc-900/50 p-0.5">
+            <button
+              type="button"
+              onClick={() => setMode('wire-ready')}
+              className={cn(
+                'rounded px-3 py-1.5 text-xs font-medium transition-colors',
+                mode === 'wire-ready'
+                  ? 'bg-zinc-800 text-zinc-100'
+                  : 'text-zinc-500 hover:text-zinc-200',
+              )}
+            >
+              Wire-ready
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('explore')}
+              className={cn(
+                'rounded px-3 py-1.5 text-xs font-medium transition-colors',
+                mode === 'explore'
+                  ? 'bg-zinc-800 text-zinc-100'
+                  : 'text-zinc-500 hover:text-zinc-200',
+              )}
+            >
+              Explore
+            </button>
+          </div>
+        </section>
 
-        <SecurityGrade
-          result={gradeResult}
-          onApplyGradeAConfig={applyGradeAConfig}
-        />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+          <div className="min-w-0 lg:col-start-1">
+            <Composer
+              mode={mode}
+              sourceChain={sourceChain}
+              destChain={destChain}
+              requiredDVNs={requiredDVNs}
+              optionalDVNs={optionalDVNs}
+              optionalThreshold={optionalThreshold}
+              onSourceChainChange={setSourceChain}
+              onDestChainChange={setDestChain}
+              onRequiredDVNsChange={setRequiredDVNs}
+              onOptionalDVNsChange={setOptionalDVNs}
+              onOptionalThresholdChange={setOptionalThreshold}
+            />
+          </div>
 
-        <CodeExport code={generatedCode} />
+          <aside className="lg:sticky lg:top-6 lg:col-start-2 lg:row-span-2 lg:self-start">
+            <SecurityGrade
+              result={gradeResult}
+              onApplyEducationalExample={applyEducationalExample}
+            />
+          </aside>
+
+          <div className="min-w-0 lg:col-start-1">
+            <CodeExport code={generatedCode} mode={mode} />
+          </div>
+        </div>
 
         <footer className="pt-8 border-t border-zinc-800">
-          <p className="text-xs text-zinc-600 text-center">
-            This tool generates configuration fragments only. Always verify DVN addresses against{' '}
-            <a
-              href="https://metadata.layerzero-api.com/v1/metadata/dvns"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-zinc-500 hover:text-zinc-400 underline underline-offset-2"
+          <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">
+            <Link
+              href="/about"
+              className="text-xs text-zinc-500 underline underline-offset-2 hover:text-zinc-300"
             >
-              official LayerZero metadata
-            </a>{' '}
-            before mainnet deployment.
-          </p>
+              About this project
+            </Link>
+            <p className="text-xs text-zinc-600 sm:text-right">
+              Emits config only when DVNs are active in{' '}
+              <a
+                href="https://metadata.layerzero-api.com/v1/metadata"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-zinc-500 hover:text-zinc-400 underline underline-offset-2"
+              >
+                official LayerZero metadata
+              </a>{' '}
+              for both selected chains.
+            </p>
+          </div>
         </footer>
       </main>
     </div>

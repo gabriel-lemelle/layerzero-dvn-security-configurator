@@ -26,7 +26,7 @@ export function ShareLink() {
     >
       {copied ? (
         <>
-          <Check className="h-4 w-4 mr-2 text-emerald-500" />
+          <Check className="h-4 w-4 mr-2 text-zinc-300" />
           Link copied
         </>
       ) : (

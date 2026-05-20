@@ -1,110 +1,192 @@
 'use client';
 
-import { AlertTriangle, CheckCircle, AlertCircle, Sparkles } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronDown, Sparkles } from 'lucide-react';
 import type { GradeResult } from '@/lib/grader';
-import { cn } from '@/lib/utils';
+import { GRADE_ACCENT } from '@/lib/grade-style';
+import { CATEGORY_COLOR } from '@/lib/category-style';
+import type { DVN } from '@/lib/dvns';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { GradeChip } from './GradeChip';
 
-interface SecurityGradeProps {
+interface Props {
   result: GradeResult;
-  onApplyGradeAConfig: () => void;
+  onApplyEducationalExample: () => void;
 }
 
-const gradeConfig = {
-  F: {
-    color: 'text-red-500',
-    bgColor: 'bg-red-500/10',
-    borderColor: 'border-red-500/30',
-    ringColor: 'ring-red-500/30',
-    Icon: AlertTriangle,
-  },
-  C: {
-    color: 'text-amber-500',
-    bgColor: 'bg-amber-500/10',
-    borderColor: 'border-amber-500/30',
-    ringColor: 'ring-amber-500/30',
-    Icon: AlertCircle,
-  },
-  A: {
-    color: 'text-emerald-500',
-    bgColor: 'bg-emerald-500/10',
-    borderColor: 'border-emerald-500/30',
-    ringColor: 'ring-emerald-500/30',
-    Icon: CheckCircle,
-  },
+const CATEGORY_SHORT: Record<DVN['category'], string> = {
+  native: 'NATIVE',
+  'zk-light-client': 'ZK',
+  attestation: 'ATTEST',
+  'multisig-consortium': 'MULTISIG',
 };
 
-export function SecurityGrade({ result, onApplyGradeAConfig }: SecurityGradeProps) {
-  const config = gradeConfig[result.grade];
-  const GradeIcon = config.Icon;
+export function SecurityGrade({ result, onApplyEducationalExample }: Props) {
+  const [open, setOpen] = useState(false);
+  const accent = GRADE_ACCENT[result.grade];
+  const showCta = result.grade === 'F' || result.grade === 'C';
 
   return (
-    <section className="py-6">
-      <div
-        className={cn(
-          'rounded-xl border p-6',
-          config.bgColor,
-          config.borderColor
-        )}
-      >
-        <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
-          {/* Grade Circle */}
-          <div
+    <section
+      id="security-grade"
+      aria-live="polite"
+      className="scroll-mt-20 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4"
+    >
+      <div className="flex items-start gap-3">
+        <GradeChip grade={result.grade} />
+        <div className="space-y-1">
+          <h3 className="text-sm font-medium text-zinc-100">{result.headline}</h3>
+          <p className="max-w-3xl text-xs leading-relaxed text-zinc-400">
+            {result.reason}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-3 flex gap-6 border-t border-zinc-800 pt-3 font-mono text-xs">
+        <Metric label="EFFECTIVE" value={result.effective} />
+        <Metric
+          label="CATEGORIES"
+          value={`${result.categoriesPresent.size} / 4`}
+          accent={accent.text}
+        />
+        <Metric label="THRESHOLD" value={result.threshold} />
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-1.5 xl:grid-cols-4">
+        {(Object.keys(CATEGORY_SHORT) as DVN['category'][]).map((catId) => {
+          const dvns = result.dvnsByCategory[catId] ?? [];
+          const filled = dvns.length > 0;
+
+          return (
+            <div
+              key={catId}
+              aria-label={`${CATEGORY_SHORT[catId]}: ${
+                filled
+                  ? `${dvns.length} DVNs — ${dvns.map((d) => d.name).join(', ')}`
+                  : 'none'
+              }`}
+              className={cn(
+                'flex min-h-[70px] flex-col gap-1 rounded-md px-2.5 py-2',
+                filled
+                  ? cn('border', accent.border, accent.tint)
+                  : 'border border-dashed border-zinc-800',
+              )}
+            >
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-wide',
+                  filled ? accent.text : 'text-zinc-600',
+                )}
+              >
+                <span
+                  aria-hidden
+                  className={cn('h-1.5 w-1.5 rounded-full', !filled && 'opacity-40')}
+                  style={{ background: CATEGORY_COLOR[catId] }}
+                />
+                {CATEGORY_SHORT[catId]}
+              </span>
+              <span
+                className={cn(
+                  'mt-0.5 font-mono text-xl font-medium leading-none',
+                  filled ? 'text-zinc-100' : 'text-zinc-700',
+                )}
+              >
+                {filled ? dvns.length : '—'}
+              </span>
+              <span
+                className={cn(
+                  'mt-auto text-[10px] leading-tight',
+                  filled ? 'text-zinc-400' : 'text-zinc-700',
+                )}
+              >
+                {filled ? dvns.map((d) => d.name).join(', ') : 'none'}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {result.nextStep && (
+        <div className="mt-3 flex flex-wrap items-center gap-2.5 border-t border-zinc-800 pt-3">
+          <span
             className={cn(
-              'shrink-0 w-24 h-24 rounded-full flex items-center justify-center ring-4',
-              config.bgColor,
-              config.ringColor
+              'font-mono text-[10px] tracking-wide whitespace-nowrap',
+              accent.text,
             )}
           >
-            <span className={cn('text-5xl font-bold', config.color)}>
-              {result.grade}
-            </span>
-          </div>
-
-          {/* Grade Details */}
-          <div className="flex-1 space-y-2">
-            <div className="flex items-center gap-2">
-              <GradeIcon className={cn('h-5 w-5', config.color)} />
-              <h3 className={cn('text-lg font-semibold', config.color)}>
-                {result.headline}
-              </h3>
-            </div>
-            <p className="text-sm text-zinc-300 leading-relaxed">
-              {result.reason}
-            </p>
-          </div>
+            NEXT →
+          </span>
+          <span className="text-xs text-zinc-300">{result.nextStep.label}</span>
+          {showCta && (
+            <Button
+              onClick={onApplyEducationalExample}
+              variant="outline"
+              size="sm"
+              className="ml-auto h-7 border-zinc-800 bg-transparent text-xs text-zinc-200 hover:bg-zinc-900 hover:text-zinc-100"
+            >
+              <Sparkles className="mr-1.5 h-3 w-3" />
+              Try a diverse example
+            </Button>
+          )}
         </div>
+      )}
 
-        {/* KelpDAO Warning Panel */}
-        {result.kelpDaoWarning && (
-          <div className="mt-6 pt-6 border-t border-red-500/20">
-            <div className="bg-red-950/50 border border-red-500/40 rounded-lg p-4 space-y-4">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <h4 className="font-semibold text-red-300">
-                    Single point of failure detected — this matches the KelpDAO exploit pattern
-                  </h4>
-                  <p className="text-sm text-red-200/80">
-                    On April 18, 2026, KelpDAO lost approximately $292M while using a 1-of-1 DVN
-                    setup. Public post-mortems describe an RPC-poisoning attack that caused the lone
-                    verifier to accept a forged cross-chain message. Your current configuration has the
-                    same single-verifier failure mode.
-                  </p>
-                </div>
-              </div>
-              <Button
-                onClick={onApplyGradeAConfig}
-                variant="outline"
-                className="w-full md:w-auto border-red-500/50 text-red-300 hover:bg-red-500/10 hover:text-red-200 hover:border-red-500"
-              >
-                <Sparkles className="h-4 w-4 mr-2" />
-                Show an educational Grade A example
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        className="mt-3 inline-flex items-center gap-1.5 text-[11px] text-zinc-500 transition-colors hover:text-zinc-300"
+      >
+        <ChevronDown
+          className={cn('h-3 w-3 transition-transform', open ? '' : '-rotate-90')}
+        />
+        Why this matters — KelpDAO context
+      </button>
+      {open && (
+        <div
+          className={cn(
+            'mt-2 border-l-2 pl-3 text-[11px] leading-relaxed text-zinc-400',
+            accent.border,
+          )}
+        >
+          On April 18, 2026, KelpDAO lost approximately $292M while using a 1-of-1 DVN
+          setup. Public post-mortems describe an RPC-poisoning attack against the lone
+          verifier. The matrix above renders the structural defense: diversity across
+          verification categories.{' '}
+          <a
+            href="https://www.chainalysis.com/blog/kelpdao-bridge-exploit-april-2026/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-zinc-100 underline underline-offset-[3px] hover:text-white"
+          >
+            Read the post-mortem
+          </a>
+        </div>
+      )}
     </section>
+  );
+}
+
+function Metric({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string | number;
+  accent?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[9px] uppercase tracking-wide text-zinc-600">
+        {label}
+      </span>
+      <span
+        className={cn('text-[13px] font-medium', accent ?? 'text-zinc-100')}
+      >
+        {value}
+      </span>
+    </div>
   );
 }
