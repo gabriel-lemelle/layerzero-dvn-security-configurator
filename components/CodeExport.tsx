@@ -25,7 +25,7 @@ export function CodeExport({ code, mode }: CodeExportProps) {
   };
 
   return (
-    <section className="space-y-4">
+    <section className="min-w-0 max-w-full space-y-4 overflow-hidden">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h2 className="text-xl font-semibold text-zinc-100">
@@ -60,14 +60,14 @@ export function CodeExport({ code, mode }: CodeExportProps) {
         </Button>
       </div>
 
-      <div className="rounded-lg border border-zinc-800 overflow-hidden">
+      <div className="max-w-full overflow-hidden rounded-lg border border-zinc-800">
         <div className="bg-zinc-900/80 px-4 py-2 border-b border-zinc-800">
           <span className="text-xs text-zinc-500 font-mono">layerzero.config.ts</span>
         </div>
         <Highlight theme={themes.nightOwl} code={code} language="typescript">
           {({ className, style, tokens, getLineProps, getTokenProps }) => (
             <pre
-              className={`${className} overflow-x-auto p-4 text-sm leading-relaxed`}
+              className={`${className} max-w-full overflow-x-auto p-4 text-sm leading-relaxed`}
               style={{ ...style, background: '#0a0a0a' }}
             >
               {tokens.map((line, i) => (

@@ -94,6 +94,22 @@ test('supports optional-only metadata-tools config when threshold is effective',
   assert.match(code, /\[\s*\[\],\s*\[\[\s*'LayerZero Labs',\s*'Horizen',\s*\], 2\],\s*\]/);
 });
 
+test('returns the explore validation block regardless of metadata coverage', () => {
+  const code = generateConfig({
+    sourceChain: ethereum,
+    destChain: base,
+    requiredDVNs: [unsupported],
+    optionalDVNs: [],
+    optionalThreshold: 0,
+    mode: 'explore',
+  });
+
+  assert.match(code, /Explore mode is for understanding DVN diversity and metadata gaps/);
+  assert.match(code, /Switch to Wire-ready mode/);
+  assert.doesNotMatch(code, /Unsupported is not listed as an active DVN/);
+  assert.doesNotMatch(code, /Ethereum Sepolia/);
+});
+
 test('blocks Ethereum Sepolia while official metadata lists no active DVNs', () => {
   const code = generateConfig({
     sourceChain: ethereum,

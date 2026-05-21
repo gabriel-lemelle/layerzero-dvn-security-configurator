@@ -21,6 +21,8 @@ const CATEGORY_SHORT: Record<DVN['category'], string> = {
   attestation: 'ATTEST',
   'multisig-consortium': 'MULTISIG',
 };
+const KELPDAO_SOURCE_URL =
+  'https://www.chainalysis.com/blog/kelpdao-bridge-exploit-april-2026/';
 
 export function SecurityGrade({ result, onApplyEducationalExample }: Props) {
   const [open, setOpen] = useState(false);
@@ -150,18 +152,19 @@ export function SecurityGrade({ result, onApplyEducationalExample }: Props) {
             accent.border,
           )}
         >
-          On April 18, 2026, KelpDAO lost approximately $292M while using a 1-of-1 DVN
-          setup. Public post-mortems describe an RPC-poisoning attack against the lone
-          verifier. The matrix above renders the structural defense: diversity across
-          verification categories.{' '}
+          KelpDAO{' '}
           <a
-            href="https://www.chainalysis.com/blog/kelpdao-bridge-exploit-april-2026/"
+            href={KELPDAO_SOURCE_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="text-zinc-100 underline underline-offset-[3px] hover:text-white"
           >
-            Read the post-mortem
-          </a>
+            lost approximately $292M on April 18, 2026
+          </a>{' '}
+          while using a 1-of-1 DVN setup. Public post-mortems describe an
+          RPC-poisoning attack against the lone verifier. The matrix above
+          renders the structural defense: diversity across verification
+          categories.
         </div>
       )}
     </section>

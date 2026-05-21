@@ -1,16 +1,26 @@
 # LayerZero V2 DVN Security Configurator
 
+![Tests](https://github.com/gabriel-lemelle/layerzero-dvn-security-configurator/actions/workflows/test.yml/badge.svg)
+
+![DVN Security Configurator — composing an A+ graded LayerZero V2 verifier stack](public/readme-hero.png)
+
 A browser-based configurator for one specific moment in a LayerZero OApp workflow: before a DVN stack gets pasted into config.
 
 It lets developers compose required and optional DVNs, see the structural risk of the stack, and export a full `layerzero.config.ts` only when the selected pathway is present in official LayerZero metadata.
 
 The project is intentionally read-only: no wallet connection, no signing, no contract deployment, no backend, and no runtime RPC calls.
 
+## Links
+
+- Live demo: https://layerzero-dvn-security-configurator.vercel.app/
+- Source: https://github.com/gabriel-lemelle/layerzero-dvn-security-configurator
+- Case study: https://layerzero-dvn-security-configurator.vercel.app/about
+
 ## Why This Exists
 
 LayerZero V2 gives OApp teams real flexibility in how they configure Decentralized Verifier Networks. That flexibility is useful, but it also means a weak verifier set can look like ordinary TypeScript during review.
 
-The KelpDAO incident made the failure mode concrete: a 1-of-1 DVN setup left one verifier as the critical dependency. This tool does not claim to prevent every bridge failure. It does one narrower thing: make verifier count and verifier-category diversity visible before config is wired.
+The [KelpDAO incident](https://www.chainalysis.com/blog/kelpdao-bridge-exploit-april-2026/) made the failure mode concrete: a 1-of-1 DVN setup left one verifier as the critical dependency. This tool does not claim to prevent every bridge failure. It does one narrower thing: make verifier count and verifier-category diversity visible before config is wired.
 
 The design notes behind the current UI are captured in `/about`.
 
@@ -52,6 +62,16 @@ Wire-ready export is gated by a local snapshot of official LayerZero metadata ch
 
 Always inspect the resolved config before wiring and rerun LayerZero's config checks after deployment.
 
+## Validation
+
+The current public build was checked with:
+
+- `npm test` - 23 tests covering grader, URL state, and exporter behavior.
+- `npm ci`
+- `npm run typecheck`
+- `npm run build`
+- Live smoke check for `/` and `/about`.
+
 ## Scope
 
 v0 focuses on EVM testnets with active LayerZero DVN metadata:
@@ -76,16 +96,16 @@ Mainnet coverage, non-EVM chains, gas modeling, latency modeling, and live deplo
 ## Run Locally
 
 ```bash
-pnpm install
-pnpm dev
+npm install
+npm run dev
 ```
 
 ## Build Checks
 
 ```bash
-pnpm test
-pnpm run typecheck
-pnpm build
+npm test
+npm run typecheck
+npm run build
 ```
 
 ## License

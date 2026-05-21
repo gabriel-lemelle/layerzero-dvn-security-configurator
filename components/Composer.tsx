@@ -389,7 +389,7 @@ export function Composer({
 
   return (
     <section className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-zinc-800/60 pb-3 text-xs">
+      <div className="flex flex-col gap-1 border-b border-zinc-800/60 pb-3 text-xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-x-4">
         <span className="text-zinc-400">
           {mode === 'wire-ready'
             ? `${compatibleDVNs.length} DVNs compatible with this pathway`
@@ -484,11 +484,11 @@ export function Composer({
       <div className="space-y-6">
         {/* Available DVNs - Full Width */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h3 className="font-mono text-[10px] uppercase tracking-wide text-zinc-500">
               Available DVNs
             </h3>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
               {/* Mode Toggle */}
               <div className="flex items-center rounded-md border border-zinc-800 bg-zinc-900/50 p-0.5">
                 <button
@@ -518,9 +518,11 @@ export function Composer({
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="text-xs text-zinc-500 hover:text-zinc-300 h-7">
-                    {categoryFilter === 'all' ? 'All Categories' : DVN_CATEGORY_LABELS[categoryFilter]}
-                    <ChevronDown className="h-3 w-3 ml-1" />
+                  <Button variant="ghost" size="sm" className="h-7 max-w-full text-xs text-zinc-500 hover:text-zinc-300">
+                    <span className="truncate">
+                      {categoryFilter === 'all' ? 'All Categories' : DVN_CATEGORY_LABELS[categoryFilter]}
+                    </span>
+                    <ChevronDown className="ml-1 h-3 w-3" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800">

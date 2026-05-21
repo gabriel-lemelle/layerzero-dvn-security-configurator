@@ -17,6 +17,8 @@ const DECISIONS: Array<[string, string, string]> = [
 ];
 
 const STACK = ['Next 16', 'React 19', 'Tailwind v4', 'Radix', 'shadcn', 'dnd-kit', 'node:test'];
+const KELPDAO_SOURCE_URL =
+  'https://www.chainalysis.com/blog/kelpdao-bridge-exploit-april-2026/';
 
 const VARIANTS: Array<{
   tag: string;
@@ -55,14 +57,24 @@ export default function AboutPage() {
 
       <div className="mt-12 border-y border-zinc-800 py-6">
         <div className="flex items-baseline gap-4">
-          <span className="font-mono text-[56px] font-medium leading-[0.9] -tracking-[0.02em] text-zinc-100 tabular-nums">
+          <a
+            href={KELPDAO_SOURCE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-mono text-[56px] font-medium leading-[0.9] -tracking-[0.02em] text-zinc-100 underline decoration-zinc-700 underline-offset-[6px] tabular-nums hover:text-white"
+          >
             $292M
-          </span>
-          <span className="text-xs leading-tight text-zinc-500">
+          </a>
+          <a
+            href={KELPDAO_SOURCE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs leading-tight text-zinc-500 underline decoration-zinc-800 underline-offset-[3px] hover:text-zinc-300"
+          >
             KelpDAO loss
             <br />
             Apr 18, 2026
-          </span>
+          </a>
         </div>
         <p className="mt-3 max-w-[480px] text-[13px] leading-relaxed text-zinc-400">
           Public post-mortems describe a 1-of-1 DVN setup where RPC poisoning
@@ -128,6 +140,14 @@ export default function AboutPage() {
           </table>
         </div>
       </Section>
+
+      <p className="mt-10 max-w-[540px] text-sm leading-relaxed text-zinc-400">
+        LayerZero builds this infrastructure from Vancouver, and the DVN
+        diversity question is one the protocol is navigating publicly after
+        KelpDAO. This artifact engages with that question from the outside: a
+        senior B2B SaaS PM exploring the protocol UX surface with the same
+        scope restraint that keeps this tool honest about what it verifies.
+      </p>
 
       <Section label="Stack">
         <div className="flex flex-wrap gap-2">

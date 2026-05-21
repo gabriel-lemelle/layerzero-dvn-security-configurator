@@ -35,6 +35,9 @@ function categoryCount(dvns: DVN[]): number {
   return new Set(dvns.map((dvn) => dvn.category)).size;
 }
 
+// Combinatorial worst-case scoring: enumerates all C(n, k) subsets to find
+// the threshold-satisfying selection with the fewest distinct categories.
+// Intentional for this bounded v0 testnet DVN set, not arbitrary DVN counts.
 function selectWeakestOptionalSubset({
   requiredDVNs,
   optionalDVNs,
